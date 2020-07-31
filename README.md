@@ -18,7 +18,7 @@ https://baobab.scope.klaytn.com/account/0xa87C2C7C63d407D9f7A9b634aF75378FB6D2Aa
 # Web Platform Url (The Carbon Tax Web Platform)
 https://co2bot.run.goorm.io/
 
-# DB Table
+# DB Table Schema
 -- User Information  
 CREATE TABLE `USER_INFO` (  
   `Idx` bigint(20) unsigned NOT NULL AUTO_INCREMENT,  
