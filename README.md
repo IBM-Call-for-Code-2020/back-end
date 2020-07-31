@@ -16,7 +16,7 @@ https://web-chat.global.assistant.watson.cloud.ibm.com/preview.html?region=au-sy
 - Iot Device Board : Arduino UNO R3  
 - Co Measure Sensor : MQ-7  
 
-# Clayton BlockChain Block Explorer Url
+# Klaytn BlockChain Block Explorer Url
 https://baobab.scope.klaytn.com/account/0xa87C2C7C63d407D9f7A9b634aF75378FB6D2Aab1?tabId=txList
 
 # Web Platform Url (The Carbon Tax Web Platform)
