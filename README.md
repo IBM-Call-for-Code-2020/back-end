@@ -1,8 +1,8 @@
 # Back-end
 Back-end of Team Ithaca in IBM Call-For-Code Global 2020
 
-# System Configuration  
-![alt text](https://github.com/IBM-Call-for-Code-2020/back-end/blob/[branch]/image.jpg?raw=true)
+# System Architecture
+!(https://github.com/IBM-Call-for-Code-2020/back-end/blob/master/web_platform/static/images/ibm_footer.png)
 
 
 # Carbon Tax Bot Url (Front-End using AI and Blockchain)
