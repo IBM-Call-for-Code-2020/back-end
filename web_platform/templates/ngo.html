@@ -1,0 +1,519 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1">
+
+<link rel="stylesheet" href="static/lib/jui/css/ui.min.css"/>
+<link id="ui_theme" rel="stylesheet" href="static/lib/jui/css/ui-jennifer.min.css"/>
+<link rel="stylesheet" href="static/lib/jui/css/grid.min.css"/>
+<link id="grid_theme" rel="stylesheet" href="static/lib/jui/css/grid-jennifer.min.css"/>
+<script src="static/lib/jquery-1.8.0.min.js"></script>
+<script src="static/lib/jui/js/core.min.js"></script>
+<script src="static/lib/jui/js/ui.min.js"></script>
+<script src="static/lib/jui/js/grid.min.js"></script>
+<script src="static/lib/jui/js/chart.min.js"></script>
+<script src="static/data.js?ver=44"></script>
+<link href="static/public.css" rel="stylesheet" type="text/css" />
+	<script>
+	</script>
+<script>
+function printStartToEndDate(month) {
+	var _ = jui.include("util.base");
+
+	var now = new Date(),
+		start = new Date(now.getFullYear(), (_.typeCheck("integer", month)) ? month : now.getMonth(), 1),
+		end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+
+	start.setDate(1);
+	end = new Date(end.getTime() - 1);
+
+	$(".header .start-date").html(_.dateFormat(start, "yyyy.MM.dd"));
+	$(".header .end-date").html(_.dateFormat(end, "yyyy.MM.dd"));
+
+	return start;
+}
+
+function printExpenseAndIncomeSum() {
+	var obj = getExpenseAndIncomeSum();
+
+	$("#expense_total_cash").html(obj.expense.cash);
+	$("#expense_total_card").html(obj.expense.card);
+	$("#income_total_cash").html(obj.income.cash);
+	$("#income_total_card").html(obj.income.card);
+}
+
+function removeExpenseAndIncomeData(table, data) {
+	$(table.root).find("input[type=checkbox]:checked").each(function(i) {
+		var index = $(this).val();
+
+		data[index] = {
+			date: "",
+			memo: "",
+			cash: 0,
+			card: 0,
+			type: ""
+		};
+	});
+
+	table.update(data);
+	printExpenseAndIncomeSum();
+}
+
+function setEditableEffect(row, e, datepicker, dropdown, isReverse) {
+	var $input = $(row.element).find("input.edit"),
+		target = $(e.target).find("input.edit")[0];
+
+	// Set datepicker event
+	$($input.get(0)).on("focus", function(e) {
+		var offset = $(e.target).offset(),
+			dy = (isReverse) ? -150 : 0;
+
+		$(datepicker.root).css({
+			left: offset.left,
+			top: offset.top + dy
+		}).show();
+	});
+
+	// Set dropdown event
+	$($input.get(4)).on("focus", function(e) {
+		var offset = $(e.target).offset(),
+			dy = (isReverse) ? -193 : 0;
+
+		dropdown.show(offset.left, offset.top + dy);
+	});
+
+	// Show components
+	if(target == $input.get(0)) {
+		$($input.get(0)).trigger("focus", e);
+	} else if(target == $input.get(4)) {
+		$($input.get(4)).trigger("focus", e);
+	}
+}
+
+function validCheckEditData(row) {
+	if(row.data["date"] == "" || row.data["memo"] == "" ||
+		isNaN(row.data["cash"]) || isNaN(row.data["card"]) || isNaN(row.data["type"])) {
+		alert("Please enter the correct value.");
+
+		return true;
+	}
+
+	return false;
+}
+
+jui.ready([ "chart.builder", "grid.table", "ui.tab", "ui.datepicker", "ui.slider", "ui.dropdown", "ui.window", "ui.notify" ],
+	function(builder, table, tab, datepicker, slider, dropdown, win, notify) {
+
+	var top_notify, top_tab, common_datepicker, common_dropdown,
+		expense_chart, expense_table, income_table,
+		summary_calender, summary_win, summary_tab, summary_expense_table, summary_income_table;
+
+	// To display this month Period
+    common_month = 7
+	var now = printStartToEndDate(common_month - 1);
+
+	// To display this month income / expenses
+	printExpenseAndIncomeSum();
+
+	// Initialize JUI Components
+
+	slider("#slider", {
+		type: "single",
+		from: common_month,
+		min: 1,
+		max: 12,
+		step: 1,
+		tooltip: false,
+		event: {
+			change: function(d) {
+				printStartToEndDate(d.from - 1);
+
+				top_notify.add({
+					type: "danger",
+					message: "Monthly data filtering does not work."
+				});
+			}
+		}
+	});
+
+	top_notify = notify("body", {
+		position: "top-right",
+		timeout: 2000,
+		tpl: {
+			item: $("#tpl_alarm").html()
+		}
+	});
+
+	top_tab = tab("#tab", {
+		event: {
+			change: function(data) {
+				if(data.index == 0) {
+					$("#tab_1").show();
+					$("#tab_2,#tab_3").hide();
+
+					expense_table.resize();
+				} else if(data.index == 1) {
+					$("#tab_2").show();
+					$("#tab_1,#tab_3").hide();
+
+					income_table.resize();
+				} else {
+					$("#tab_1,#tab_2").hide();
+					$("#tab_3").show();
+
+					summary_calender.reload();
+				}
+			}
+		}
+	});
+
+	common_datepicker = datepicker("#common_datepicker", {
+		format: "yyyy/MM/dd",
+		date: now,
+		event: {
+			select: function(date, e) {
+				var table = (top_tab.activeIndex() == 0) ? expense_table : income_table;
+
+				$($(table.root).find("input.edit").get(0)).val(date);
+				$(this.root).hide();
+			}
+		},
+		tpl: {
+			date: "<td><!= date !></td>"
+		}
+	});
+
+	common_dropdown = dropdown("#common_dropdown", {
+		event: {
+			change: function(data) {
+				var table = (top_tab.activeIndex() == 0) ? expense_table : income_table;
+
+				$($(table.root).find("input.edit").get(4)).val(data.value);
+				$(this.root).hide();
+			}
+		},
+		tpl : {
+			node : "<li value='<!= value !>'><!= text !></li>"
+		}
+	});
+
+	expense_chart = builder("#expense_chart", {
+		width : "100%",
+		height : 300,
+		padding : {
+			top : 25,
+			right : 25,
+			bottom: 25
+		},
+		axis : [{
+			x : {
+				type : "block",
+				domain : expense_types
+			},
+			y : {
+				type : "range",
+				domain : function(d) {
+					return Math.max(d.card, d.cash) * 1.2;
+				},
+				format : function(d) {
+					return Math.floor(d / 1000) + "K";
+				},
+				step : 3,
+				line : "solid"
+			},
+			data : getExpenseDataForChart(expense_data)
+		}],
+		brush : [{
+			type : "column",
+			target : [ "cash", "card" ],
+			outerPadding : 25,
+			minSize : 5,
+			colors : [ 8, 9 ]
+		}],
+		widget : [{
+			type : "tooltip"
+		}],
+		style : {
+			gridXAxisBorderWidth : 1,
+			gridYAxisBorderWidth : 0,
+			gridTickBorderSize : 0,
+			gridTickPadding : 7
+		}
+	});
+
+	expense_table = table("#expense_table", {
+		fields : [ null, "date", "memo", "cash", "card", "type" ],
+		editRow : false,
+		scroll : true,
+		scrollHeight : 220,
+		data : "",
+		event: {
+			editstart: function(row, e) {
+				common_dropdown.update(getExpenseTypes());
+				setEditableEffect(row, e, common_datepicker, common_dropdown, true);
+			},
+			editend: function(row, e) {
+				if(validCheckEditData(row)) return false;
+
+				expense_chart.axis(0).update(getExpenseDataForChart(this.listData()));
+				$(common_datepicker.root).hide();
+
+				printExpenseAndIncomeSum();
+			}
+		},
+		tpl: {
+			row: $("#tpl_expense_row").html()
+		}
+	});
+
+	income_table = table("#income_table", {
+		fields : [ null, "date", "memo", "cash", "card", "type" ],
+		editRow : true,
+		scroll : true,
+		scrollHeight : 540,
+		data: "",
+		tpl: {
+			row: $("#tpl_income_row").html()
+		},
+		event : {
+			editstart: function(row, e) {
+				common_dropdown.update(getIncomeTypes());
+				setEditableEffect(row, e, common_datepicker, common_dropdown, false);
+			},
+			editend: function(row, e) {
+				if(validCheckEditData(row)) return false;
+
+				$(common_datepicker.root).hide();
+
+				printExpenseAndIncomeSum();
+			}
+		}
+	});
+
+	summary_calender = datepicker("#summary_calender", {
+		format: "yyyy/MM/dd",
+		date: now,
+		event: {
+			select: function(date, e) {
+				var data = getExpenseAndIncomeData(this.getDate().getDate());
+
+				if(data != null) {
+					summary_expense_table.update(data.expense.list);
+					summary_income_table.update(data.income.list);
+					summary_tab.show(0);
+					summary_win.show();
+				}
+			}
+		},
+		tpl: {
+			date: $("#tpl_date").html()
+		}
+	});
+
+	summary_tab = tab("#summary_tab", {
+		event: {
+			change: function(data) {
+				var $table = $(summary_win.root).find("table");
+
+				if(data.index == 0) {
+					$($table.get(0)).show();
+					$($table.get(1)).hide();
+				} else {
+					$($table.get(0)).hide();
+					$($table.get(1)).show();
+				}
+			}
+		}
+	})
+
+	summary_win = win("#summary_win", {
+		modal: true,
+		width: 600,
+		height: 400
+	});
+
+	summary_expense_table = table("#summary_expense_table", {
+		fields : [ null, "date", "memo", "cash", "card", "type" ],
+		colshow : [ 1, 2, 3, 4, 5 ],
+		tpl: {
+			row: $("#tpl_expense_row").html()
+		}
+	});
+
+	summary_income_table = table("#summary_income_table", {
+		fields : [ null, "date", "memo", "cash", "card", "type" ],
+		colshow : [ 1, 2, 3, 4, 5 ],
+		tpl: {
+			row: $("#tpl_income_row").html()
+		}
+	});
+
+	// Set markup events
+
+	$("#help").on("click", function(e) {
+		top_notify.add({
+			type: "warning",
+			message: "Toolbar buttons are not working."
+		});
+	});
+
+	$("#expense_delbtn").on("click", function(e) {
+		removeExpenseAndIncomeData(expense_table, expense_data);
+		expense_chart.axis(0).update(getExpenseDataForChart(expense_table.listData()));
+	});
+	$("#income_delbtn").on("click", function(e) {
+		removeExpenseAndIncomeData(income_table, income_data);
+	});
+});
+</script>
+</head>
+<body class="jui">
+
+<div class="header">
+	<div class="center">
+		<div class="title">
+			<span class="start-date"></span> - <span class="end-date"></span>
+		</div>
+
+		<div id="slider" class="slider horizontal" style="width: 250px;"></div>
+
+		<div class="slider-scale">
+			<span>1</span>
+			<span>2</span>
+			<span>3</span>
+			<span>4</span>
+			<span>5</span>
+			<span>6</span>
+			<span>7</span>
+			<span>8</span>
+			<span>9</span>
+			<span>10</span>
+			<span>11</span>
+			<span>12</span>
+		</div>
+
+		<script id="tpl_alarm" type="text/template">
+			<div class="notify <!= type !>">
+				<div class="title">Notice</div>
+				<div class="message"><!= message !></div>
+			</div>
+		</script>
+	</div>
+
+	<ul id="tab" class="tab top">
+		<li><a href="#">Carbon Emission Calendar</a></li>
+	</ul>
+
+	<div class="toolbar">
+		<div class="group">
+			<a class="btn mini"><i class="icon-table"></i></a>
+			<a class="btn mini"><i class="icon-tool"></i></a>
+			<a class="btn mini"><i class="icon-printer"></i></a>
+		</div>
+
+		<a class="btn mini" id="help">Help</a>
+	</div>
+</div>
+
+<div class="contents">
+
+	<!-- 0. Common Components -->
+	<div id="common_datepicker" class="datepicker" style="display: none; position: absolute; z-index: 1;">
+		<div class="head">
+			<div class="prev"><i class="icon-chevron-left"></i></div>
+			<div class="title"></div>
+			<div class="next"><i class="icon-chevron-right"></i></div>
+		</div>
+		<table class="body">
+			<tr>
+				<th>SU</th><th>MO</th><th>TU</th><th>WE</th><th>TH</th><th>FR</th><th>SA</th>
+			</tr>
+		</table>
+	</div>
+	<div id="common_dropdown" class="dropdown">
+		<ul style="width: 190px;"></ul>
+	</div>
+
+	<!-- 3. Summary Tab -->
+	<div id="tab_1" >
+		<div id="summary_calender" class="calendar" style="height: 580px; padding-top: 0px;">
+			<table class="body">
+				<tr>
+					<th>SUN</th><th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th><th>SAT</th>
+				</tr>
+			</table>
+		</div>
+		<script id="tpl_date" type="text/template">
+			<td>
+				<div><!= date !></div>
+				<!
+					var data = getExpenseAndIncomeData(date);
+
+					if(type != "none" && data != null) { !>
+					<div class="task" style="cursor: pointer;">
+						<! if(data.income.count > 0) { !>
+						<span style="background: #28a7db;">
+							<i class="icon-plus"></i> (<!= data.income.count !> calls)
+							<span class="num"><!= data.income.total !></span>
+						</span>
+						<! } !>
+						<! if(data.expense.count > 0) { !>
+						<span style="background: #ff847c;">
+							<i class="icon-minus"></i> (<!= data.expense.count !> calls)
+							<span class="num"><!= data.expense.total !></span>
+						</span>
+						<! } !>
+					</div>
+					<! }
+				!>
+			</td>
+		</script>
+
+		<div id="summary_win" class="window">
+			<div class="head">
+				<div class="left">Summary</div>
+				<div class="right">
+					<a href="#" class="close"><i class="icon-exit"></i></a>
+				</div>
+			</div>
+			<div class="body">
+				<ul id="summary_tab" class="pill top" style="margin-bottom: 10px;">
+					<li class="active"><a href="#">Expense</a></li>
+					<li><a href="#">Income</a></li>
+				</ul>
+
+				<table id="summary_expense_table" class="table simple headline small stripeless">
+					<thead>
+					<tr>
+						<th></th>
+						<th>Date</th>
+						<th width="50%">Memo</th>
+						<th>Cash</th>
+						<th>Card</th>
+						<th>Type</th>
+					</tr>
+					</thead>
+					<tbody></tbody>
+				</table>
+				<table id="summary_income_table" class="table simple headline small stripeless" style="display: none;">
+					<thead>
+					<tr>
+						<th></th>
+						<th>Date</th>
+						<th width="50%">Memo</th>
+						<th>Cash</th>
+						<th>Card</th>
+						<th>Type</th>
+					</tr>
+					</thead>
+					<tbody></tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+
+</div>
+
+</body>
+</html>
