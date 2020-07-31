@@ -1,13 +1,13 @@
 # back-end
 Back-end of Team Ithaca in IBM Call-For-Code Global 2020
 
-# Carbon Tax Bot Url
+# Carbon Tax Bot Url (Front-End using AI and Blockchain)
 https://ibm.pinot.studio/chat
 
-# IBM Watson Assistant Apply
+# IBM Watson Assistant Apply (IBM Service)
 https://web-chat.global.assistant.watson.cloud.ibm.com/preview.html?region=au-syd&integrationID=ade5378b-18c8-4579-9e3c-a1d1e756dc86&serviceInstanceID=45e4a82e-f647-4a5c-866b-69fae0086057
 
-# Web Platform Url
+# Web Platform Url (The Carbon Tax Web Platform)
 https://co2bot.run.goorm.io/
 
 # BlockChain block explorer Url
